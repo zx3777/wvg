@@ -1,5 +1,6 @@
-let psshs=chrome.extension.getBackgroundPage().psshs;
-let requests=chrome.extension.getBackgroundPage().requests;
+// 注意：删除了原来开头的 let psshs = ... 和 let requests = ...
+// 因为 popup/main.js 已经负责声明和向后台获取这些数据了
+
 var userInputs={};
 
 document.getElementById('psshButton').addEventListener("click", () => drawList(psshs, 'pssh'));

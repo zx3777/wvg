@@ -1,8 +1,8 @@
-let psshs=chrome.extension.getBackgroundPage().psshs;
-let requests=chrome.extension.getBackgroundPage().requests;
-let pageURL=chrome.extension.getBackgroundPage().pageURL;
-let targetIds=chrome.extension.getBackgroundPage().targetIds;
-let clearkey=chrome.extension.getBackgroundPage().clearkey;
+let psshs = [];
+let requests = [];
+let pageURL = "";
+let targetIds = [];
+let clearkey = "";
 
 async function guess(){
     //Be patient!
@@ -73,15 +73,25 @@ async function autoSelect(){
     document.getElementById("schemeSelect").dispatchEvent(new Event("input"))
 }
 
-if (clearkey) {
-    document.getElementById('noEME').style.display = 'none';
-    document.getElementById('ckHome').style.display = 'grid';
-    document.getElementById('ckResult').value = clearkey;
-    document.getElementById('ckResult').addEventListener("click", copyResult);
-} else if (psshs.length) {
-    document.getElementById('noEME').style.display = 'none';
-    document.getElementById('home').style.display = 'grid';
-    document.getElementById('guess').addEventListener("click", guess);
-    document.getElementById('result').addEventListener("click", copyResult);
-    autoSelect();
-}
+chrome.runtime.sendMessage({type: "GET_STATE"}, (state) => {
+    if (!state) return;
+    
+    psshs = state.psshs || [];
+    requests = state.requests || [];
+    pageURL = state.pageURL || "";
+    targetIds = state.targetIds || [];
+    clearkey = state.clearkey || "";
+
+    if (clearkey) {
+        document.getElementById('noEME').style.display = 'none';
+        document.getElementById('ckHome').style.display = 'grid';
+        document.getElementById('ckResult').value = clearkey;
+        document.getElementById('ckResult').addEventListener("click", copyResult);
+    } else if (psshs.length) {
+        document.getElementById('noEME').style.display = 'none';
+        document.getElementById('home').style.display = 'grid';
+        document.getElementById('guess').addEventListener("click", guess);
+        document.getElementById('result').addEventListener("click", copyResult);
+        autoSelect();
+    }
+});

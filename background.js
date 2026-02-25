@@ -1,50 +1,61 @@
-(async () => {
-window.psshs=[];
-window.requests=[];
-window.bodys=[];
-window.targetIds=[];
-window.pageURL="";
-window.clearkey="";
+// 移除 window 前缀，使用全局变量声明
+let psshs = [];
+let requests = [];
+let bodys = [];
+let targetIds = [];
+let pageURL = "";
+let clearkey = "";
+let isBlock = false;
+let blockRules = [];
 
 chrome.storage.local.get("isBlock", (value) => {
-    window.isBlock = value.isBlock;
-})
+    isBlock = value.isBlock || false;
+});
 
 function convertHeaders(obj){
-    return JSON.stringify(Object.fromEntries(obj.map(header => [header.name, header.value])))
+    return JSON.stringify(Object.fromEntries(obj.map(header => [header.name, header.value])));
 }
 
-window.blockRules = await fetch("blockRules.conf").then((r)=>r.text());
-window.blockRules = window.blockRules.replace(/\n^\s*$|\s*\/\/.*|\s*$/gm, "").split("\n");
+// 异步获取并解析规则
+fetch("blockRules.conf").then((r)=>r.text()).then(text => {
+    blockRules = text.replace(/\n^\s*$|\s*\/\/.*|\s*$/gm, "").split("\n");
+});
+
 function testBlock(url) {
-    return window.isBlock && window.blockRules.some(e => url.includes(e));
+    return isBlock && blockRules.some(e => url.includes(e));
 }
 
-//Get URL and headers from POST requests
+// Get URL and headers from POST requests
 chrome.webRequest.onBeforeSendHeaders.addListener(
     function(details) {
         if (details.method === "POST") {
-            window.requests.push({
-                url:details.url,
-                headers:convertHeaders(details.requestHeaders),
-                body:window.bodys.find((b) => b.id == details.requestId).body
+            // 查找对应的 body
+            let matchingBody = bodys.find((b) => b.id == details.requestId);
+            requests.push({
+                url: details.url,
+                headers: convertHeaders(details.requestHeaders),
+                body: matchingBody ? matchingBody.body : ""
             });
+            
+            // 注意：MV3 中直接 return {cancel: true} 可能无效，
+            // 除非是企业强制安装的扩展。完全拦截需要迁移到 declarativeNetRequest API。
             if(testBlock(details.url)){
-                return {cancel:true}
+                console.log("Blocked:", details.url);
+                // return {cancel:true}; // MV3 默认不支持 webRequest 阻塞
             }
         }
     },
     {urls: ["<all_urls>"]},
-    ["requestHeaders", "blocking"]
+    ["requestHeaders", "extraHeaders"] 
 );
 
-//Get requestBody from POST requests
+// Get requestBody from POST requests
 chrome.webRequest.onBeforeRequest.addListener(
     function(details) {
-        if (details.method === "POST") {
-            window.bodys.push({
-                body:details.requestBody.raw ? btoa(String.fromCharCode(...new Uint8Array(details.requestBody.raw[0]['bytes']))) : "",
-                id:details.requestId
+        if (details.method === "POST" && details.requestBody && details.requestBody.raw) {
+            bodys.push({
+                body: btoa(String.fromCharCode(...new Uint8Array(details.requestBody.raw[0]['bytes']))),
+                id: details.requestId
             });
         }
     },
@@ -52,27 +63,31 @@ chrome.webRequest.onBeforeRequest.addListener(
     ["requestBody"]
 );
 
-//Receive PSSH from content.js
+// Receive PSSH from content.js
 chrome.runtime.onMessage.addListener(
     function (request, sender, sendResponse) {
         switch(request.type){
             case "RESET":
-                location.reload()
+                // location.reload() 在 Service Worker 中不可用
+                // 可以考虑清空变量代替
+                psshs = [];
+                requests = [];
+                bodys = [];
                 break;
             case "PSSH":
-                window.psshs.push(request.text)
-                window.pageURL=sender.tab.url
-                window.targetIds=[sender.tab.id, sender.frameId]
+                psshs.push(request.text);
+                pageURL = sender.tab ? sender.tab.url : "";
+                targetIds = sender.tab ? [sender.tab.id, sender.frameId] : [];
                 break;
             case "CLEARKEY":
-                window.clearkey=request.text
+                clearkey = request.text;
                 break;
         }
     }
 );
-} )()
 
-chrome.browserAction.onClicked.addListener(tab => {
+// browserAction 改为 action
+chrome.action.onClicked.addListener(tab => {
     if(chrome.windows){
         chrome.windows.create({
             url: "popup/main.html",
@@ -92,19 +107,22 @@ function createMenu(){
         title: "Enable License Blocking"
     });
 }
-chrome.runtime.onInstalled.addListener(createMenu)
-chrome.runtime.onStartup.addListener(createMenu)
+
+chrome.runtime.onInstalled.addListener(createMenu);
+chrome.runtime.onStartup.addListener(createMenu);
 
 chrome.contextMenus.onClicked.addListener(item => {
     if(item.menuItemId == "toggleBlocking"){
         chrome.storage.local.get("isBlock", (value) => {
             if(value.isBlock){
                 chrome.storage.local.set({'isBlock': false}, null);
-                chrome.contextMenus.update("toggleBlocking",{title: "Enable License Blocking"})
+                chrome.contextMenus.update("toggleBlocking",{title: "Enable License Blocking"});
+                isBlock = false;
             } else {
                 chrome.storage.local.set({'isBlock': true}, null);
-                chrome.contextMenus.update("toggleBlocking",{title: "Disable License Blocking"})
+                chrome.contextMenus.update("toggleBlocking",{title: "Disable License Blocking"});
+                isBlock = true;
             }
-        })
+        });
     }
-})
+});

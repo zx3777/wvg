@@ -67,12 +67,20 @@ chrome.webRequest.onBeforeRequest.addListener(
 chrome.runtime.onMessage.addListener(
     function (request, sender, sendResponse) {
         switch(request.type){
+            case "GET_STATE":  // <--- 新增这段分支用于把数据传给弹窗
+                sendResponse({
+                    psshs: psshs,
+                    requests: requests,
+                    pageURL: pageURL,
+                    targetIds: targetIds,
+                    clearkey: clearkey
+                });
+                break;
             case "RESET":
-                // location.reload() 在 Service Worker 中不可用
-                // 可以考虑清空变量代替
                 psshs = [];
                 requests = [];
                 bodys = [];
+                clearkey = "";
                 break;
             case "PSSH":
                 psshs.push(request.text);
@@ -83,6 +91,7 @@ chrome.runtime.onMessage.addListener(
                 clearkey = request.text;
                 break;
         }
+        return true; // 异步发送响应需要返回 true
     }
 );
 

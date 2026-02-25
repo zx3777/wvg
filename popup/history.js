@@ -1,4 +1,3 @@
-let psshs=chrome.extension.getBackgroundPage().psshs;
 function showHistory(){
     chrome.storage.local.get(null, (data => {
         let tree=jsonview.renderJSON(JSON.stringify(data), document.getElementById('histDisp'));

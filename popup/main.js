@@ -1,8 +1,37 @@
-let psshs = [];
-let requests = [];
-let pageURL = "";
-let targetIds = [];
-let clearkey = "";
+// 使用 var 声明全局变量，确保 drawList.js 也能访问
+var psshs = [];
+var requests = [];
+var pageURL = "";
+var targetIds = [];
+var clearkey = "";
+window.isBlock = false; // 伪造给 Python 脚本使用的变量
+
+// [关键修复] 伪造 getBackgroundPage 对象，防止 Python 脚本中的 isBlock 报错
+if (!chrome.extension) chrome.extension = {};
+chrome.extension.getBackgroundPage = () => window;
+
+chrome.runtime.sendMessage({type: "GET_STATE"}, (state) => {
+    if (!state) return;
+    
+    psshs = state.psshs || [];
+    requests = state.requests || [];
+    pageURL = state.pageURL || "";
+    targetIds = state.targetIds || [];
+    clearkey = state.clearkey || "";
+
+    if (clearkey) {
+        document.getElementById('noEME').style.display = 'none';
+        document.getElementById('ckHome').style.display = 'grid';
+        document.getElementById('ckResult').value = clearkey;
+        document.getElementById('ckResult').addEventListener("click", copyResult);
+    } else if (psshs.length) {
+        document.getElementById('noEME').style.display = 'none';
+        document.getElementById('home').style.display = 'grid';
+        document.getElementById('guess').addEventListener("click", guess);
+        document.getElementById('result').addEventListener("click", copyResult);
+        autoSelect();
+    }
+});
 
 async function guess(){
     //Be patient!
@@ -72,26 +101,3 @@ async function autoSelect(){
 
     document.getElementById("schemeSelect").dispatchEvent(new Event("input"))
 }
-
-chrome.runtime.sendMessage({type: "GET_STATE"}, (state) => {
-    if (!state) return;
-    
-    psshs = state.psshs || [];
-    requests = state.requests || [];
-    pageURL = state.pageURL || "";
-    targetIds = state.targetIds || [];
-    clearkey = state.clearkey || "";
-
-    if (clearkey) {
-        document.getElementById('noEME').style.display = 'none';
-        document.getElementById('ckHome').style.display = 'grid';
-        document.getElementById('ckResult').value = clearkey;
-        document.getElementById('ckResult').addEventListener("click", copyResult);
-    } else if (psshs.length) {
-        document.getElementById('noEME').style.display = 'none';
-        document.getElementById('home').style.display = 'grid';
-        document.getElementById('guess').addEventListener("click", guess);
-        document.getElementById('result').addEventListener("click", copyResult);
-        autoSelect();
-    }
-});

@@ -1,10 +1,8 @@
-// 注意：删除了原来开头的 let psshs = ... 和 let requests = ...
-// 因为 popup/main.js 已经负责声明和向后台获取这些数据了
-
 var userInputs={};
 
-document.getElementById('psshButton').addEventListener("click", () => drawList(psshs, 'pssh'));
-document.getElementById('licenseButton').addEventListener("click", () => drawList(requests.map(r => r['url']), 'license'));
+// 使用 window 对象明确获取主脚本中的全局变量
+document.getElementById('psshButton').addEventListener("click", () => drawList(window.psshs, 'pssh'));
+document.getElementById('licenseButton').addEventListener("click", () => drawList(window.requests.map(r => r['url']), 'license'));
 
 function writeListElement(items, outputVar, searchStr) {
     document.getElementById("items").innerHTML = '';
